@@ -1,0 +1,49 @@
+language: c
+
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+            - libsdl2-dev
+            - libsdl2-mixer-dev
+            - libsdl2-ttf-dev
+      env:
+        - CHOOSENIM_NO_ANALYTICS=1
+        - CC=gcc-7
+        - CXX=g++-7
+        - DIST_FILE=linux
+      before_install:
+        - curl https://nim-lang.org/choosenim/init.sh -sSf | sh
+        - export PATH="$HOME/.nimble/bin:$PATH"
+    - os: osx
+      osx_image: xcode9.3
+      env:
+        - DIST_FILE=darwin
+      before_install:
+        - brew install nim sdl2{,_mixer,_ttf}
+
+install:
+  - nimble -y install
+
+script:
+  - nimble buildprod
+  - nimble test
+
+after_success:
+  - mkdir archive
+  - python -c "import shutil; shutil.make_archive('archive/$DIST_FILE', 'zip', 'build')"
+  - ls -al
+
+deploy:
+  provider: releases
+  file: archive/*
+  on:
+    repo: unindented/pong-sdl2-nim
+    tags: true
+  api_key:
+    secure: jpk8gNpV8f1qEyCazteORZ88NrbIuJtDeyoO74VpdRVgt/VpW05mh3S5bXu42nPVTwDGe8nnzGtRfkE6GxrmzfwzmqZS/sW+funJq3D/A5ViznMpmjRaXTVU9yaCqWCaaWGq2YSF8qwTnJbfZ+RaI1OlseejWkRbVD2NTeRI+kmk9uVUoacVbU6TxJ0bCif6pkZ3ElUTJnZ8kO66WxX2ZyGDtWq2MSUTCzbUlYLS0SB83kiqe6Q5vf+YbNWNARt69kIhlhVvNdGg7GgxpLFvG60pWvDeAk63e3Ihwhy1Xki6kYY4p14eeAbuT4Pk2rn00cTJKnfOdDIXtrVyCut43tGnRvnkQ9v/NAYM2eo2UKJlE41Z073ox1zg1bSNwSsRlQtRsldEzNMUM+vRFvKkrcBPH5WBG7mQqquHbXCSoLnXqlAOMP6DPMR+3GKTzTCL7MpKGR+I0lsFRlc6J++OnwFcB3T6X5aEkJ1q9R9TXDhVeJOGdhzZAubGBqvi02e59y2bLP7BNZyZ7fPIcmVqYY/onlSAA5lS3eji9KO/7Uyio1nFLuMIsrPye1OC/mm7dIZO7c8yDDbk7CIwvcBxHSuv01x//cj8XVVg7kU9nVK2SYAeWONPD1o17A3jSpxi4OnmKFLkGfgkXClKNFdtMhapHJro6/dn6RhfqSttEAI=

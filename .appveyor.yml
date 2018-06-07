@@ -1,0 +1,84 @@
+version: "{build}"
+
+image: Visual Studio 2015
+
+environment:
+  NIM_VERSION: 0.18.0
+  SDL2_VERSION: 2.0.8
+  NIM_DIR: C:\nim-%NIM_VERSION%
+  SDL2_FILE: SDL2-devel-%SDL2_VERSION%-mingw.tar.gz
+  SDL2_URL: https://www.libsdl.org/release/%SDL2_FILE%
+  SDL2_MIXER_VERSION: 2.0.2
+  SDL2_MIXER_FILE: SDL2_mixer-devel-%SDL2_MIXER_VERSION%-mingw.tar.gz
+  SDL2_MIXER_URL: https://www.libsdl.org/projects/SDL_mixer/release/SDL2_mixer-devel-%SDL2_MIXER_VERSION%-mingw.tar.gz
+  SDL2_TTF_VERSION: 2.0.14
+  SDL2_TTF_FILE: SDL2_ttf-devel-%SDL2_TTF_VERSION%-mingw.tar.gz
+  SDL2_TTF_URL: https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-devel-%SDL2_TTF_VERSION%-mingw.tar.gz
+
+  matrix:
+    - platform: x86
+      configuration: Release
+      MINGW_HOME: C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32
+      NIM_FILE: nim-%NIM_VERSION%_x32.zip
+      NIM_URL: https://nim-lang.org/download/%NIM_FILE%
+      SDL2_DIR: C:\SDL2-%SDL2_VERSION%\i686-w64-mingw32
+      SDL2_MIXER_DIR: C:\SDL2_mixer-%SDL2_MIXER_VERSION%\i686-w64-mingw32
+      SDL2_TTF_DIR: C:\SDL2_ttf-%SDL2_TTF_VERSION%\i686-w64-mingw32
+    - platform: x64
+      configuration: Release
+      MINGW_HOME: C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64
+      NIM_FILE: nim-%NIM_VERSION%_x64.zip
+      NIM_URL: https://nim-lang.org/download/%NIM_FILE%
+      SDL2_DIR: C:\SDL2-%SDL2_VERSION%\x86_64-w64-mingw32
+      SDL2_MIXER_DIR: C:\SDL2_mixer-%SDL2_MIXER_VERSION%\x86_64-w64-mingw32
+      SDL2_TTF_DIR: C:\SDL2_ttf-%SDL2_TTF_VERSION%\x86_64-w64-mingw32
+
+cache:
+  - "%NIM_FILE%"
+  - "%SDL2_FILE%"
+  - "%SDL2_MIXER_FILE%"
+  - "%SDL2_TTF_FILE%"
+
+init:
+  - ps: Update-AppveyorBuild -Version "$(Get-Date -format yyyyMMdd).$env:APPVEYOR_BUILD_NUMBER"
+
+install:
+  # Workaround for CMake not wanting sh.exe on PATH for MinGW.
+  - set PATH=%MINGW_HOME%\bin;%PATH:C:\Program Files\Git\usr\bin;=%
+  - path
+
+  - appveyor DownloadFile %NIM_URL%
+  - 7z x %NIM_FILE% -oC:\
+  - set PATH=%NIM_DIR%\bin;%PATH%
+
+  - if not exist "%SDL2_FILE%" appveyor DownloadFile %SDL2_URL%
+  - 7z x "%SDL2_FILE%" -so | 7z x -si -ttar -oC:\
+  - xcopy "%SDL2_DIR%\*" "%MINGW_DIR%\" /s /y
+
+  - if not exist "%SDL2_MIXER_FILE%" appveyor DownloadFile %SDL2_MIXER_URL%
+  - 7z x "%SDL2_MIXER_FILE%" -so | 7z x -si -ttar -oC:\
+  - xcopy "%SDL2_MIXER_DIR%\*" "%MINGW_DIR%\" /s /y
+
+  - if not exist "%SDL2_TTF_FILE%" appveyor DownloadFile %SDL2_TTF_URL%
+  - 7z x "%SDL2_TTF_FILE%" -so | 7z x -si -ttar -oC:\
+  - xcopy "%SDL2_TTF_DIR%\*" "%MINGW_DIR%\" /s /y
+
+build_script:
+  - nimble -y install
+  - nimble buildprod
+  - dir build\
+
+test_script:
+  - nimble test
+
+deploy:
+  tag: "%APPVEYOR_REPO_TAG_NAME%"
+  release: "%APPVEYOR_REPO_TAG_NAME%"
+  description: "Release %APPVEYOR_REPO_TAG_NAME%"
+  artifact: /build\/.*/
+  provider: GitHub
+  auth_token:
+    secure: YZz31LgG5yYJcDT3VcPmNdEKc8dIiz2vnJhHzqt0dHzRyvdJvXNh3yQTnqKXt/ra
+  on:
+    branch: master
+    appveyor_repo_tag: true
